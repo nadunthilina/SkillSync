@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Routes, Route, Link, NavLink, Outlet } from 'react-router-dom'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import ProtectedRoute from './components/ProtectedRoute'
 import axios from 'axios'
 import { Brain, LineChart, Users2, MessageSquareText, User, LogOut, Search, Menu } from 'lucide-react'
 
@@ -329,14 +332,16 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<AuthPage mode="login" />} />
-      <Route path="/register" element={<AuthPage mode="register" />} />
-      <Route element={<AppShell />}>
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppShell />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/analyzer" element={<AnalyzerPage />} />
         <Route path="/roadmap" element={<RoadmapPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        </Route>
       </Route>
     </Routes>
   )
