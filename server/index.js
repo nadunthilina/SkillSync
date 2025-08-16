@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
+const authRoutes = require('./routes/auth');
 
 dotenv.config();
 
@@ -24,22 +25,23 @@ app.use(morgan('dev'));
 app.get('/api/health', (req, res) => {
   res.json({ message: 'OK' });
 });
+app.use('/api/auth', authRoutes);
 
 // DB + Server start
 async function start() {
+  let connected = false;
   try {
     if (!MONGO_URI) {
       console.warn('MONGO_URI is not set. Skipping DB connection for now.');
     } else {
-      await mongoose.connect(MONGO_URI, {
-        serverSelectionTimeoutMS: 5000,
-      });
+      await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
       console.log('MongoDB connected');
+      connected = true;
     }
-    app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
   } catch (err) {
-    console.error('Failed to start server:', err);
-    process.exit(1);
+    console.warn('MongoDB connection failed:', err?.message || err);
+  } finally {
+    app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}${connected ? '' : ' (DB not connected)'}`));
   }
 }
 
