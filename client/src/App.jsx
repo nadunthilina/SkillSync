@@ -96,6 +96,20 @@ function FeatureCard({ icon, title, desc }) {
 }
 
 function AuthPage({ mode }) {
+  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [error, setError] = useState('')
+  const onSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    try {
+      const url = mode === 'login' ? 'http://localhost:4000/api/auth/login' : 'http://localhost:4000/api/auth/register'
+      const payload = mode === 'login' ? { email: form.email, password: form.password } : { name: form.name, email: form.email, password: form.password }
+      await axios.post(url, payload, { withCredentials: true })
+      window.location.href = '/dashboard'
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Something went wrong')
+    }
+  }
   return (
     <div className="min-h-screen grid md:grid-cols-2">
       <div className="hidden md:block bg-gradient-to-br from-sky-50 to-teal-50 p-10">
@@ -105,19 +119,20 @@ function AuthPage({ mode }) {
         </div>
       </div>
       <div className="flex items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white border rounded-2xl p-6 shadow-sm">
+  <div className="w-full max-w-md bg-white border rounded-2xl p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <div className={`h-8 w-8 rounded-lg ${brand.gradient}`}></div>
             <p className="font-semibold">SkillSync</p>
           </div>
           <h1 className="text-2xl font-bold mb-6">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
-          <form className="space-y-4">
+          {error && <div className="mb-3 text-sm text-rose-600">{error}</div>}
+          <form className="space-y-4" onSubmit={onSubmit}>
             {mode === 'register' && (
-              <input className="w-full border rounded-lg px-3 py-2" placeholder="Name" />
+              <input className="w-full border rounded-lg px-3 py-2" placeholder="Name" value={form.name} onChange={(e)=>setForm({...form, name: e.target.value})} />
             )}
-            <input className="w-full border rounded-lg px-3 py-2" placeholder="Email" type="email" />
-            <input className="w-full border rounded-lg px-3 py-2" placeholder="Password" type="password" />
-            <button type="button" className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700">{mode === 'login' ? 'Log in' : 'Sign up'}</button>
+            <input className="w-full border rounded-lg px-3 py-2" placeholder="Email" type="email" value={form.email} onChange={(e)=>setForm({...form, email: e.target.value})} />
+            <input className="w-full border rounded-lg px-3 py-2" placeholder="Password" type="password" value={form.password} onChange={(e)=>setForm({...form, password: e.target.value})} />
+            <button type="submit" className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700">{mode === 'login' ? 'Log in' : 'Sign up'}</button>
           </form>
           <div className="mt-6">
             <p className="text-xs text-gray-500 mb-2 text-center">Or continue with</p>
