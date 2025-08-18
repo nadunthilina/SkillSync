@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const User = require('../models/User')
 const auth = require('../middleware/auth')
+const crypto = require('crypto')
+const { sendResetEmail } = require('../utils/email')
 
 const router = express.Router()
 
@@ -55,7 +57,12 @@ router.post('/login', async (req, res) => {
 })
 
 router.post('/logout', (req, res) => {
-  res.clearCookie('token')
+  const isProd = process.env.NODE_ENV === 'production'
+  res.clearCookie('token', {
+    httpOnly: true,
+    sameSite: isProd ? 'none' : 'lax',
+    secure: isProd,
+  })
   res.json({ message: 'Logged out' })
 })
 
@@ -64,5 +71,51 @@ router.get('/me', auth(false), async (req, res) => {
   const user = await User.findById(req.user.id).select('name email role')
   res.json({ user })
 })
+
+// Forgot password
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body
+  if (!email) return res.status(400).json({ message: 'Email is required' })
+  const user = await User.findOne({ email })
+  if (!user) return res.json({ message: 'If that account exists, we sent a reset link.' })
+  const token = crypto.randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 30) // 30 minutes
+  user.resetToken = token
+  user.resetTokenExpiresAt = expiresAt
+  await user.save()
+  const base = process.env.CLIENT_URL || 'http://localhost:5173'
+  const link = `${base}/reset-password/${token}`
+  await sendResetEmail(user.email, link)
+  res.json({ message: 'Reset link sent' })
+})
+
+// Reset password
+router.post('/reset-password/:token', async (req, res) => {
+  const { token } = req.params
+  const { password } = req.body
+  if (!password) return res.status(400).json({ message: 'Password is required' })
+  const user = await User.findOne({ resetToken: token, resetTokenExpiresAt: { $gt: new Date() } })
+  if (!user) return res.status(400).json({ message: 'Invalid or expired token' })
+  const bcrypt = require('bcryptjs')
+  user.passwordHash = await bcrypt.hash(password, 10)
+  user.resetToken = undefined
+  user.resetTokenExpiresAt = undefined
+  await user.save()
+  res.json({ message: 'Password updated' })
+})
+
+// Dev-only helper: fetch latest reset link for a given email
+if (process.env.NODE_ENV !== 'production') {
+  router.get('/_dev/reset-link', async (req, res) => {
+    const { email } = req.query
+    if (!email) return res.status(400).json({ message: 'email is required' })
+    const user = await User.findOne({ email })
+    if (!user || !user.resetToken || user.resetTokenExpiresAt < new Date()) {
+      return res.status(404).json({ message: 'No active reset token for this user' })
+    }
+    const base = process.env.CLIENT_URL || 'http://localhost:5173'
+    return res.json({ link: `${base}/reset-password/${user.resetToken}` })
+  })
+}
 
 module.exports = router

@@ -8,6 +8,8 @@ const userSchema = new mongoose.Schema({
   skills: [{ type: String }],
   goal: { type: String },
   avatarUrl: { type: String },
+  resetToken: { type: String },
+  resetTokenExpiresAt: { type: Date },
 }, { timestamps: true })
 
 module.exports = mongoose.model('User', userSchema)

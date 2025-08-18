@@ -2,9 +2,13 @@ import { useEffect, useState } from 'react'
 import { Routes, Route, Link, NavLink, Outlet } from 'react-router-dom'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import ProtectedRoute from './components/ProtectedRoute'
 import axios from 'axios'
 import { Brain, LineChart, Users2, MessageSquareText, User, LogOut, Search, Menu } from 'lucide-react'
+import { useAuth } from './context/AuthContext.jsx'
+import { useNavigate } from 'react-router-dom'
 
 const brand = {
   name: 'SkillSync',
@@ -14,7 +18,7 @@ const brand = {
 function HealthDot() {
   const [status, setStatus] = useState('loading') // loading | ok | fail
   useEffect(() => {
-    axios.get('http://localhost:4000/api/health').then(() => setStatus('ok')).catch(() => setStatus('fail'))
+    axios.get('/api/health').then(() => setStatus('ok')).catch(() => setStatus('fail'))
   }, [])
   const color = status === 'ok' ? 'bg-emerald-500' : status === 'fail' ? 'bg-rose-500' : 'bg-amber-400 animate-pulse'
   return <span title={`API: ${status}`} className={`inline-block h-2.5 w-2.5 rounded-full ${color}`}></span>
@@ -37,7 +41,7 @@ function LandingPage() {
           <div className="flex items-center gap-3">
             <HealthDot />
             <Link to="/login" className="px-3 py-1.5 text-sm rounded-lg border">Log in</Link>
-            <Link to="/register" className="px-3 py-1.5 text-sm rounded-lg text-white bg-sky-600 hover:bg-sky-700">Get Started</Link>
+            <Link to="/signup" className="px-3 py-1.5 text-sm rounded-lg text-white bg-sky-600 hover:bg-sky-700">Get Started</Link>
           </div>
         </div>
       </header>
@@ -50,7 +54,7 @@ function LandingPage() {
               <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Bridge Your Skills to Your Dream Job</h1>
               <p className="text-gray-600 mb-6">Identify your gaps, get a personalized learning roadmap, and connect with mentors — all in one place.</p>
               <div className="flex flex-wrap gap-3">
-                <Link to="/register" className="px-5 py-3 rounded-lg text-white bg-sky-600 hover:bg-sky-700 shadow-sm">Get Started</Link>
+                <Link to="/signup" className="px-5 py-3 rounded-lg text-white bg-sky-600 hover:bg-sky-700 shadow-sm">Get Started</Link>
                 <a href="#features" className="px-5 py-3 rounded-lg border hover:bg-white">Learn More</a>
               </div>
             </div>
@@ -152,8 +156,10 @@ function AuthPage({ mode }) {
 }
 
 function AppShell() {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const nav = [
+  const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: <LineChart className="h-5 w-5" /> },
     { to: '/analyzer', label: 'Skill Analyzer', icon: <Brain className="h-5 w-5" /> },
     { to: '/roadmap', label: 'Roadmap', icon: <LineChart className="h-5 w-5" /> },
@@ -169,13 +175,13 @@ function AppShell() {
           <span className="font-semibold">SkillSync</span>
         </div>
         <nav className="p-3 space-y-1">
-          {nav.map((n) => (
+          {navItems.map((n) => (
             <NavLink key={n.to} to={n.to} className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg ${isActive ? 'bg-sky-50 text-sky-700' : 'hover:bg-gray-50'}`}>
               {n.icon}
               <span className="text-sm">{n.label}</span>
             </NavLink>
           ))}
-          <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 w-full text-left"><LogOut className="h-5 w-5" /><span className="text-sm">Logout</span></button>
+          <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 w-full text-left" onClick={async()=>{ await logout(); navigate('/login') }}><LogOut className="h-5 w-5" /><span className="text-sm">Logout</span></button>
         </nav>
       </aside>
       <div className="flex flex-col">
@@ -304,6 +310,15 @@ function ChatPage() {
   )
 }
 
+function MentorsPage() {
+  return (
+    <div className="rounded-2xl border bg-white p-5">
+      <h2 className="font-semibold mb-3">Mentors</h2>
+      <p className="text-sm text-gray-600">Mentor matching will appear here.</p>
+    </div>
+  )
+}
+
 function ProfilePage() {
   return (
     <div className="grid lg:grid-cols-3 gap-4">
@@ -334,11 +349,14 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+  <Route path="/forgot-password" element={<ForgotPassword />} />
+  <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/analyzer" element={<AnalyzerPage />} />
         <Route path="/roadmap" element={<RoadmapPage />} />
+  <Route path="/mentors" element={<MentorsPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         </Route>

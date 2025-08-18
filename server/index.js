@@ -16,7 +16,31 @@ const MONGO_URI = process.env.MONGO_URI;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
 // Middleware
-app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+// CORS: allow configured origins; in dev, allow any localhost port for convenience
+const allowedOrigins = (CORS_ORIGIN || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow non-browser requests or same-origin
+      if (!origin) return callback(null, true);
+
+      // If explicit list provided, honor it
+      if (allowedOrigins.length > 0) {
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'));
+      }
+
+      // Fallback: allow any localhost:* for dev
+      if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
