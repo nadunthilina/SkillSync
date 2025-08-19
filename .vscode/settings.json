@@ -1,0 +1,19 @@
+{
+  // Silence CSS unknown @tailwind at-rules in source files
+  "css.lint.unknownAtRules": "ignore",
+  // Don’t warn about vendor prefixes in generated CSS (dist)
+  "css.lint.vendorPrefix": "ignore",
+  // Ignore display-related false positives in generated CSS
+  "css.lint.propertyIgnoredDueToDisplay": "ignore",
+
+  // Keep validation enabled generally
+  "css.validate": true,
+
+  // Keep search and watchers from traversing build output
+  "search.exclude": {
+    "**/client/dist": true
+  },
+  "files.watcherExclude": {
+    "**/client/dist/**": true
+  }
+}
