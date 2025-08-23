@@ -21,18 +21,28 @@ export function AuthProvider({ children }) {
   useEffect(() => { checkAuth() }, [])
 
   const login = async (email, password) => {
-    const { data } = await AuthAPI.login({ email, password })
+    const emailSanitized = (email || '').trim().toLowerCase()
+    const { data } = await AuthAPI.login({ email: emailSanitized, password })
     setUser(data.user)
     return data.user
   }
   const signup = async (name, email, password) => {
-    const { data } = await AuthAPI.register({ name, email, password })
+    const payload = {
+      name: (name || '').trim(),
+      email: (email || '').trim().toLowerCase(),
+      password,
+    }
+    const { data } = await AuthAPI.register(payload)
     setUser(data.user)
     return data.user
   }
   const logout = async () => {
     await AuthAPI.logout()
     setUser(null)
+    // Ensure landing redirect after logout, avoiding ProtectedRoute races
+    if (typeof window !== 'undefined') {
+      window.location.replace('/')
+    }
   }
 
   return (
