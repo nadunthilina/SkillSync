@@ -5,6 +5,14 @@ const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
+const analyzerRoutes = require('./routes/analyzer');
+const roadmapRoutes = require('./routes/roadmap');
+const mentorsRoutes = require('./routes/mentors');
+const userRoutes = require('./routes/user');
+const chatRoutes = require('./routes/chat');
+const auth = require('./middleware/auth');
+const { verifyAdmin } = require('./middleware/auth');
 
 dotenv.config();
 
@@ -50,6 +58,12 @@ app.get('/api/health', (req, res) => {
   res.json({ message: 'OK' });
 });
 app.use('/api/auth', authRoutes);
+app.use('/api/analyzer', analyzerRoutes);
+app.use('/api/roadmap', roadmapRoutes);
+app.use('/api/mentors', mentorsRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/admin', auth(true), verifyAdmin, adminRoutes);
 
 // DB + Server start
 async function start() {

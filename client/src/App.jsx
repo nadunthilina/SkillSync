@@ -24,7 +24,105 @@ function HealthDot() {
   return <span title={`API: ${status}`} className={`inline-block h-2.5 w-2.5 rounded-full ${color}`}></span>
 }
 
+function Modal({ open, onClose, title, children }) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-[100]">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="absolute inset-0 grid place-items-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border">
+          <div className="flex items-center justify-between px-5 py-4 border-b">
+            <h3 className="font-semibold">{title}</h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
+          </div>
+          <div className="p-5">{children}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function LandingPage() {
+  const { login, signup } = useAuth()
+  const navigate = useNavigate()
+  const [showLogin, setShowLogin] = useState(false)
+  const [showSignup, setShowSignup] = useState(false)
+  const [showForgot, setShowForgot] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
+  const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [forgotForm, setForgotForm] = useState({ email: '' })
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotSent, setForgotSent] = useState(false)
+  const [cooldownUntil, setCooldownUntil] = useState(0)
+  const [hp, setHp] = useState('')
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setError('')
+    setAuthLoading(true)
+    try {
+      await login(loginForm.email, loginForm.password)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to log in')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const validatePassword = (pw) => /[A-Za-z]/.test(pw) && /\d/.test(pw) && pw.length >= 8
+
+  const handleSignup = async (e) => {
+    e.preventDefault()
+    setError('')
+    setAuthLoading(true)
+    try {
+      if (hp) throw new Error('Bot detected')
+      const now = Date.now()
+      if (now < cooldownUntil) throw new Error('Please wait a moment before trying again')
+      const name = signupForm.name.trim()
+      const email = signupForm.email.trim().toLowerCase()
+      const pw = signupForm.password
+      const confirm = signupForm.confirm
+      if (!name || !email || !pw) throw new Error('All fields are required')
+      if (pw !== confirm) throw new Error('Passwords do not match')
+      if (!validatePassword(pw)) throw new Error('Password must be at least 8 characters and include letters and numbers')
+      const start = Date.now()
+      await signup(name, email, pw)
+      const elapsed = Date.now() - start
+      if (elapsed < 400) await new Promise(r => setTimeout(r, 400 - elapsed))
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to sign up')
+      setCooldownUntil(Date.now() + 3000)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleForgot = async (e) => {
+    e.preventDefault()
+    setError('')
+    setForgotLoading(true)
+    try {
+      if (hp) throw new Error('Bot detected')
+      const now = Date.now()
+      if (now < cooldownUntil) throw new Error('Please wait a moment before trying again')
+      const email = forgotForm.email.trim().toLowerCase()
+      const { AuthAPI } = await import('./lib/api')
+      await AuthAPI.forgotPassword(email)
+      setForgotSent(true)
+    } catch (err) {
+      // For security, show generic success; optionally show server message during dev
+      setForgotSent(true)
+      setCooldownUntil(Date.now() + 3000)
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
   return (
     <div>
       <header className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b">
@@ -40,8 +138,8 @@ function LandingPage() {
           </nav>
           <div className="flex items-center gap-3">
             <HealthDot />
-            <Link to="/login" className="px-3 py-1.5 text-sm rounded-lg border">Log in</Link>
-            <Link to="/signup" className="px-3 py-1.5 text-sm rounded-lg text-white bg-sky-600 hover:bg-sky-700">Get Started</Link>
+            <button onClick={()=>{ setShowLogin(true); setError('') }} className="px-3 py-1.5 text-sm rounded-lg border">Log in</button>
+            <button onClick={()=>{ setShowSignup(true); setError('') }} className="px-3 py-1.5 text-sm rounded-lg text-white bg-sky-600 hover:bg-sky-700">Get Started</button>
           </div>
         </div>
       </header>
@@ -88,6 +186,46 @@ function LandingPage() {
       </main>
 
       <footer className="border-t py-8 text-sm text-gray-500 text-center">© {new Date().getFullYear()} SkillSync</footer>
+
+      {/* Auth Modals */}
+      <Modal open={showLogin} onClose={()=>setShowLogin(false)} title="Log in">
+        {error && <div className="mb-3 text-sm text-rose-600">{error}</div>}
+        <form className="space-y-3" onSubmit={handleLogin}>
+          <input className="w-full border rounded-lg px-3 py-2" placeholder="Email" type="email" value={loginForm.email} onChange={(e)=>setLoginForm({...loginForm, email: e.target.value})} required />
+          <input className="w-full border rounded-lg px-3 py-2" placeholder="Password" type="password" value={loginForm.password} onChange={(e)=>setLoginForm({...loginForm, password: e.target.value})} required />
+          <button type="submit" disabled={authLoading} className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60">{authLoading ? 'Logging in…' : 'Log in'}</button>
+        </form>
+        <div className="mt-3 text-xs text-gray-500">Forgot password? <button className="text-sky-600 hover:underline" onClick={()=>{ setShowLogin(false); setShowForgot(true); setError(''); setForgotSent(false); setForgotForm({ email: '' }) }}>Reset</button></div>
+        <div className="mt-3 text-xs text-gray-500">No account? <button className="text-sky-600 hover:underline" onClick={()=>{ setShowLogin(false); setShowSignup(true); }}>Sign up</button></div>
+      </Modal>
+
+      <Modal open={showSignup} onClose={()=>setShowSignup(false)} title="Create your account">
+        {error && <div className="mb-3 text-sm text-rose-600">{error}</div>}
+        <form className="space-y-3" onSubmit={handleSignup}>
+          <input className="w-full border rounded-lg px-3 py-2" placeholder="Name" value={signupForm.name} onChange={(e)=>setSignupForm({...signupForm, name: e.target.value})} required />
+          <input className="w-full border rounded-lg px-3 py-2" placeholder="Email" type="email" value={signupForm.email} onChange={(e)=>setSignupForm({...signupForm, email: e.target.value})} required />
+          <input className="w-full border rounded-lg px-3 py-2" placeholder="Password (min 8 chars, letters & numbers)" type="password" value={signupForm.password} onChange={(e)=>setSignupForm({...signupForm, password: e.target.value})} required />
+          <input className="w-full border rounded-lg px-3 py-2" placeholder="Confirm password" type="password" value={signupForm.confirm} onChange={(e)=>setSignupForm({...signupForm, confirm: e.target.value})} required />
+          <input className="hidden" tabIndex={-1} autoComplete="off" value={hp} onChange={(e)=>setHp(e.target.value)} aria-hidden="true" />
+          <button type="submit" disabled={authLoading} className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60">{authLoading ? 'Creating…' : 'Sign up'}</button>
+        </form>
+        <div className="mt-3 text-xs text-gray-500">Already have an account? <button className="text-sky-600 hover:underline" onClick={()=>{ setShowSignup(false); setShowLogin(true); }}>Log in</button></div>
+      </Modal>
+
+      <Modal open={showForgot} onClose={()=>setShowForgot(false)} title="Reset your password">
+        {forgotSent ? (
+          <div className="space-y-3 text-sm">
+            <p>We’ve sent a password reset link to your email if an account exists.</p>
+            <button className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700" onClick={()=>{ setShowForgot(false); setShowLogin(true) }}>Back to login</button>
+          </div>
+        ) : (
+          <form className="space-y-3" onSubmit={handleForgot}>
+            <input className="w-full border rounded-lg px-3 py-2" placeholder="Your email" type="email" value={forgotForm.email} onChange={(e)=>setForgotForm({ email: e.target.value })} required />
+            <input className="hidden" tabIndex={-1} autoComplete="off" value={hp} onChange={(e)=>setHp(e.target.value)} aria-hidden="true" />
+            <button type="submit" disabled={forgotLoading || Date.now() < cooldownUntil} className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60">{forgotLoading ? 'Sending…' : (Date.now() < cooldownUntil ? 'Please wait…' : 'Send reset link')}</button>
+          </form>
+        )}
+      </Modal>
     </div>
   )
 }
@@ -181,7 +319,7 @@ function AppShell() {
               <span className="text-sm">{n.label}</span>
             </NavLink>
           ))}
-          <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 w-full text-left" onClick={async()=>{ await logout(); navigate('/login') }}><LogOut className="h-5 w-5" /><span className="text-sm">Logout</span></button>
+          <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 w-full text-left" onClick={async()=>{ await logout(); }}><LogOut className="h-5 w-5" /><span className="text-sm">Logout</span></button>
         </nav>
       </aside>
       <div className="flex flex-col">
@@ -205,12 +343,15 @@ function AppShell() {
 }
 
 function DashboardPage() {
+  const [progress, setProgress] = useState(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(()=>{ (async()=>{ try { const { data } = await axios.get('/api/user/progress', { withCredentials:true }); setProgress(data.progress) } catch(e){ console.error(e) } finally { setLoading(false) } })() }, [])
   return (
     <div className="grid lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
         <div className="rounded-2xl border bg-white p-5">
           <h2 className="font-semibold mb-3">Progress Overview</h2>
-          <div className="h-40 grid place-items-center text-gray-400">[Charts placeholder]</div>
+          <ProgressCharts progress={progress} loading={loading} />
         </div>
         <div className="rounded-2xl border bg-white p-5">
           <h2 className="font-semibold mb-3">Missing Skills</h2>
@@ -228,112 +369,267 @@ function DashboardPage() {
   )
 }
 
+// Charts component (client dashboard)
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, RadialBarChart, RadialBar } from 'recharts'
+
+function ProgressCharts({ progress, loading }) {
+  if (loading) return <div className="h-40 grid place-items-center text-gray-400 text-sm">Loading…</div>
+  if (!progress) return <div className="h-40 grid place-items-center text-gray-400 text-sm">No data yet</div>
+  const radialData = [{ name:'Completion', value: progress.completionPercent }]
+  const COLORS = ['#0ea5e9','#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6']
+  return (
+    <div className="grid sm:grid-cols-3 gap-4">
+      <div className="h-40 rounded-xl border bg-white/50 flex flex-col">
+        <p className="text-xs font-medium px-3 pt-2 text-gray-500">Overall</p>
+        <div className="flex-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart innerRadius={40} outerRadius={70} data={radialData} startAngle={90} endAngle={-270}>
+              <RadialBar minAngle={15} clockWise background dataKey="value" fill="#0ea5e9" cornerRadius={10} />
+              <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-sky-600 font-semibold text-sm">{progress.completionPercent}%</text>
+            </RadialBarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      <div className="h-40 rounded-xl border bg-white/50 flex flex-col">
+        <p className="text-xs font-medium px-3 pt-2 text-gray-500">Weekly Hours</p>
+        <div className="flex-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={progress.weeks} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+              <XAxis dataKey="weekStart" tickFormatter={d=>d.slice(5)} fontSize={10} stroke="#94a3b8" />
+              <YAxis width={24} fontSize={10} stroke="#94a3b8" />
+              <Tooltip cursor={{ fill: '#f1f5f9' }} />
+              <Bar dataKey="hours" radius={[4,4,0,0]} fill="#6366f1" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      <div className="h-40 rounded-xl border bg-white/50 flex flex-col">
+        <p className="text-xs font-medium px-3 pt-2 text-gray-500">Skill Categories</p>
+        <div className="flex-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={progress.categories} dataKey="value" nameKey="name" innerRadius={25} outerRadius={55} paddingAngle={2}>
+                {progress.categories.map((c,i)=><Cell key={i} fill={COLORS[i%COLORS.length]} />)}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AnalyzerPage() {
+  const [role, setRole] = useState('Frontend Developer')
+  const [skills, setSkills] = useState('react, javascript, css')
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const analyze = async () => {
+    setLoading(true)
+    try {
+      const { data } = await axios.post('/api/analyzer/analyze', { role, skillsText: skills }, { withCredentials: true })
+      setResult(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
   return (
     <div className="grid lg:grid-cols-3 gap-4">
       <div className="lg:col-span-1 rounded-2xl border bg-white p-5">
         <h2 className="font-semibold mb-3">Skill Analyzer</h2>
-        <form className="space-y-3">
-          <select className="w-full border rounded-lg px-3 py-2">
+        <div className="space-y-3">
+          <select className="w-full border rounded-lg px-3 py-2" value={role} onChange={e=>setRole(e.target.value)}>
             <option>Frontend Developer</option>
             <option>Backend Developer</option>
             <option>Data Scientist</option>
           </select>
-          <textarea className="w-full border rounded-lg px-3 py-2 h-28" placeholder="Your current skills (comma separated)"></textarea>
-          <button type="button" className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700">Analyze</button>
-        </form>
+          <textarea className="w-full border rounded-lg px-3 py-2 h-28" placeholder="Your current skills (comma separated)" value={skills} onChange={e=>setSkills(e.target.value)}></textarea>
+          <button type="button" disabled={loading} onClick={analyze} className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60">{loading? 'Analyzing…':'Analyze'}</button>
+        </div>
       </div>
       <div className="lg:col-span-2 space-y-4">
-        <div className="rounded-2xl border bg-white p-5">
-          <h3 className="font-semibold mb-2">Missing Skills</h3>
-          <div className="flex flex-wrap gap-2">
-            {['TypeScript','Redux','Testing'].map(s => <span key={s} className="px-3 py-1.5 text-sm rounded-full bg-emerald-50 text-emerald-700 border">{s}</span>)}
-          </div>
-        </div>
-        <div className="rounded-2xl border bg-white p-5">
-          <h3 className="font-semibold mb-3">Recommended Resources</h3>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {[1,2,3,4].map(i => (
-              <div key={i} className="rounded-xl border overflow-hidden bg-white">
-                <div className="h-28 bg-gradient-to-tr from-sky-200 to-blue-200"/>
-                <div className="p-4">
-                  <p className="font-medium">Course {i}</p>
-                  <p className="text-xs text-gray-500">Coursera / YouTube</p>
+        {result && (
+          <>
+            <div className="rounded-2xl border bg-white p-5">
+              <h3 className="font-semibold mb-2">Missing Skills</h3>
+              {result.missingSkills.length === 0 ? <p className="text-sm text-gray-500">No gaps detected 🎉</p> : (
+                <div className="flex flex-wrap gap-2">
+                  {result.missingSkills.map(s => <span key={s} className="px-3 py-1.5 text-sm rounded-full bg-emerald-50 text-emerald-700 border">{s}</span>)}
                 </div>
+              )}
+            </div>
+            <div className="rounded-2xl border bg-white p-5">
+              <h3 className="font-semibold mb-3">Recommended Resources</h3>
+              <div className="space-y-3">
+                {result.recommendedResources.map(r => (
+                  <div key={r.skill} className="rounded-xl border p-3">
+                    <p className="font-medium mb-1">{r.skill}</p>
+                    <ul className="text-xs text-gray-600 list-disc pl-4 space-y-0.5">
+                      {r.resources.map(res => <li key={res}>{res}</li>)}
+                    </ul>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
 }
 
 function RoadmapPage() {
+  const [missing, setMissing] = useState('react testing typescript')
+  const [role, setRole] = useState('Frontend Developer')
+  const [tasks, setTasks] = useState([])
+  const [loading, setLoading] = useState(false)
+  const generate = async () => {
+    setLoading(true)
+    try {
+      const missingSkills = missing.split(/[,\s]/).map(s=>s.trim().toLowerCase()).filter(Boolean)
+      const { data } = await axios.post('/api/roadmap/generate', { role, missingSkills }, { withCredentials: true })
+      setTasks(data.tasks)
+    } catch (e) { console.error(e) } finally { setLoading(false) }
+  }
   return (
-    <div className="rounded-2xl border bg-white p-5">
-      <h2 className="font-semibold mb-3">Learning Roadmap</h2>
-      <div className="overflow-x-auto">
-        <div className="min-w-[700px] grid grid-cols-6 gap-3 text-sm">
-          {['Week 1','Week 2','Week 3','Week 4','Week 5','Week 6'].map((w) => <div key={w} className="text-center text-gray-500">{w}</div>)}
-          {[1,2,3].map((row) => (
-            <div key={row} className="col-span-6 h-16 relative">
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 rounded-lg bg-sky-100 border text-sky-700 px-3 grid place-items-center" style={{ width: `${40 + row*10}%` }}>Task {row}</div>
-            </div>
-          ))}
+    <div className="space-y-5">
+      <div className="rounded-2xl border bg-white p-5">
+        <h2 className="font-semibold mb-3">Generate Roadmap</h2>
+        <div className="grid sm:grid-cols-3 gap-3">
+          <select className="border rounded-lg px-3 py-2" value={role} onChange={e=>setRole(e.target.value)}>
+            <option>Frontend Developer</option>
+            <option>Backend Developer</option>
+            <option>Data Scientist</option>
+          </select>
+          <input className="border rounded-lg px-3 py-2 sm:col-span-2" value={missing} onChange={e=>setMissing(e.target.value)} placeholder="Missing skills" />
+          <button onClick={generate} disabled={loading} className="px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60 sm:col-span-3">{loading? 'Generating…':'Generate'}</button>
         </div>
+      </div>
+      <div className="rounded-2xl border bg-white p-5">
+        <h2 className="font-semibold mb-3">Roadmap Tasks</h2>
+        {tasks.length === 0 ? <p className="text-sm text-gray-500">No tasks yet.</p> : (
+          <div className="divide-y">
+            {tasks.map(t => (
+              <div key={t.week} className="py-3 flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="text-xs font-medium px-2 py-1 rounded-md bg-sky-100 text-sky-700 border">Week {t.week}</div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">{t.title}</p>
+                  <p className="text-xs text-gray-500">{t.description}</p>
+                </div>
+                <div className="text-xs text-gray-500">{t.estimatedHours}h</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 function ChatPage() {
+  const [mentors, setMentors] = useState([])
+  const [active, setActive] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [text, setText] = useState('')
+  const loadMentors = async () => {
+    try { const { data } = await axios.get('/api/chat/conversations', { withCredentials: true }); setMentors(data.mentors) } catch(e){ console.error(e) }
+  }
+  const loadMessages = async (mentorId) => {
+    try { const { data } = await axios.get(`/api/chat/messages/${mentorId}`, { withCredentials: true }); setMessages(data.messages); setActive(mentorId) } catch(e){ console.error(e) }
+  }
+  const send = async () => {
+    if (!active || !text.trim()) return
+    const t = text
+    setText('')
+    try { const { data } = await axios.post(`/api/chat/messages/${active}`, { text: t }, { withCredentials: true }); setMessages(m => [...m, ...data.messages]) } catch(e){ console.error(e) }
+  }
+  useEffect(()=>{ loadMentors() }, [])
   return (
-    <div className="grid lg:grid-cols-[280px_1fr] gap-4">
-      <div className="rounded-2xl border bg-white p-4 space-y-2">
-        {[1,2,3,4].map(i => (
-          <div key={i} className="p-3 rounded-lg hover:bg-gray-50 border">Mentor {i}</div>
+    <div className="grid lg:grid-cols-[260px_1fr] gap-4">
+      <div className="rounded-2xl border bg-white p-3 space-y-2">
+        {mentors.map(m => (
+          <button key={m._id} onClick={()=>loadMessages(m._id)} className={`block w-full text-left p-3 rounded-lg border ${active===m._id?'bg-sky-50 border-sky-300':'hover:bg-gray-50'}`}>{m.name || 'Mentor'}</button>
         ))}
+        {mentors.length===0 && <p className="text-xs text-gray-500">No mentors yet.</p>}
       </div>
       <div className="rounded-2xl border bg-white flex flex-col">
-        <div className="border-b p-3 font-medium">Chat with Mentor 1</div>
-        <div className="flex-1 p-4 space-y-3">
-          <div className="max-w-sm rounded-2xl px-3 py-2 bg-gray-100">Hello! How can I help?</div>
-          <div className="max-w-sm rounded-2xl px-3 py-2 bg-sky-600 text-white ml-auto">I need advice on React performance.</div>
+        <div className="border-b p-3 font-medium">{active? 'Conversation':'Select a mentor'}</div>
+        <div className="flex-1 p-4 space-y-3 overflow-y-auto">
+          {messages.map(m => (
+            <div key={m._id} className={`max-w-sm rounded-2xl px-3 py-2 ${m.sender==='user'?'bg-sky-600 text-white ml-auto':'bg-gray-100'}`}>{m.text}</div>
+          ))}
         </div>
-        <div className="border-t p-3 flex gap-2">
-          <input className="flex-1 border rounded-lg px-3 py-2" placeholder="Type a message..." />
-          <button className="px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700">Send</button>
-        </div>
+        {active && (
+          <div className="border-t p-3 flex gap-2">
+            <input className="flex-1 border rounded-lg px-3 py-2" placeholder="Type a message..." value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter') send() }} />
+            <button onClick={send} className="px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700">Send</button>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 function MentorsPage() {
+  const [mentors, setMentors] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [choosing, setChoosing] = useState('')
+  const choose = async (id) => {
+    setChoosing(id)
+    try { await axios.post('/api/user/choose-mentor', { mentorId: id }, { withCredentials: true }); alert('Mentor selected'); } catch(e){ alert(e.response?.data?.message||'Failed') } finally { setChoosing('') }
+  }
+  useEffect(()=>{ (async()=>{ try { const { data } = await axios.get('/api/mentors'); setMentors(data.mentors) } catch(e){ console.error(e) } finally { setLoading(false) } })() }, [])
   return (
     <div className="rounded-2xl border bg-white p-5">
       <h2 className="font-semibold mb-3">Mentors</h2>
-      <p className="text-sm text-gray-600">Mentor matching will appear here.</p>
+      {loading ? <p className="text-sm text-gray-500">Loading…</p> : mentors.length===0 ? <p className="text-sm text-gray-500">No mentors yet.</p> : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {mentors.map(m => (
+            <div key={m.id} className="rounded-xl border p-4 bg-white space-y-1">
+              <p className="font-medium">{m.name}</p>
+              <p className="text-xs text-gray-500">{m.email}</p>
+              <p className="text-xs text-gray-500">{m.phone || 'No phone'}</p>
+              <button disabled={choosing===m.id} onClick={()=>choose(m.id)} className="mt-2 text-xs px-3 py-1 rounded bg-sky-600 text-white disabled:opacity-50">{choosing===m.id?'Choosing…':'Choose Mentor'}</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 function ProfilePage() {
+  const [form, setForm] = useState({ name: '', goal: '', skills: '' })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const load = async () => {
+    try { const { data } = await axios.get('/api/user/profile', { withCredentials: true }); if (data.user) setForm({ name: data.user.name||'', goal: data.user.goal||'', skills: (data.user.skills||[]).join(', ') }) } catch(e){ console.error(e) } finally { setLoading(false) }
+  }
+  useEffect(()=>{ load() }, [])
+  const save = async (e) => {
+    e.preventDefault(); setSaving(true); setMessage('')
+    try {
+      const skillsArr = form.skills.split(/[,\n]/).map(s=>s.trim()).filter(Boolean)
+      await axios.patch('/api/user/profile', { name: form.name, goal: form.goal, skills: skillsArr }, { withCredentials: true })
+      setMessage('Saved')
+    } catch(e){ setMessage('Error saving') } finally { setSaving(false) }
+  }
   return (
     <div className="grid lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 rounded-2xl border bg-white p-5">
         <h2 className="font-semibold mb-3">Profile Settings</h2>
-        <form className="space-y-3">
-          <input className="w-full border rounded-lg px-3 py-2" placeholder="Full name" />
-          <input className="w-full border rounded-lg px-3 py-2" placeholder="Career goal" />
-          <textarea className="w-full border rounded-lg px-3 py-2 h-24" placeholder="Skills (comma separated)"></textarea>
-          <div>
-            <label className="text-sm text-gray-600">Profile picture</label>
-            <input type="file" className="mt-1 block w-full text-sm" />
-          </div>
-          <button className="px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700">Save changes</button>
-        </form>
+        {loading ? <p className="text-sm text-gray-500">Loading…</p> : (
+          <form className="space-y-3" onSubmit={save}>
+            <input className="w-full border rounded-lg px-3 py-2" placeholder="Full name" value={form.name} onChange={e=>setForm({...form, name:e.target.value})} />
+            <input className="w-full border rounded-lg px-3 py-2" placeholder="Career goal" value={form.goal} onChange={e=>setForm({...form, goal:e.target.value})} />
+            <textarea className="w-full border rounded-lg px-3 py-2 h-24" placeholder="Skills (comma separated)" value={form.skills} onChange={e=>setForm({...form, skills:e.target.value})}></textarea>
+            <button disabled={saving} className="px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60">{saving? 'Saving…':'Save changes'}</button>
+            {message && <p className="text-xs text-gray-500">{message}</p>}
+          </form>
+        )}
       </div>
       <div className="rounded-2xl border bg-white p-5">
         <h3 className="font-semibold mb-2">Tips</h3>
