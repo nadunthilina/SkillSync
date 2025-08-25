@@ -1,15 +1,22 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { AdminAPI } from '../utils/axiosInstance'
 
 const nav = [
 	{ to: '/admin', label: 'Dashboard' },
 	{ to: '/admin/users', label: 'Users' },
 	{ to: '/admin/jobs', label: 'Jobs' },
 	{ to: '/admin/resources', label: 'Resources' },
+	{ to: '/admin/mentors', label: 'Mentors' },
+	{ to: '/admin/mentor-applications', label: 'Mentor Applications' },
 	{ to: '/admin/reports', label: 'Reports' },
 	{ to: '/admin/settings', label: 'Settings' },
 ]
 
 export default function AdminLayout() {
+	const navigate = useNavigate()
+	const logout = async () => {
+		try { await AdminAPI.logout() } catch {} finally { navigate('/admin/login', { replace:true }) }
+	}
 	return (
 		<div className="min-h-screen grid grid-cols-1 md:grid-cols-[240px_1fr] bg-gray-50">
 			<aside className="bg-white border-r">
@@ -24,6 +31,7 @@ export default function AdminLayout() {
 				<header className="h-14 bg-white border-b flex items-center justify-between px-4">
 					<input className="w-72 max-w-[50vw] hidden md:block px-3 py-1.5 text-sm rounded-lg border bg-gray-50" placeholder="Search..." />
 					<div className="flex items-center gap-3">
+						<button onClick={logout} className="px-3 py-1.5 text-sm rounded-lg border bg-white hover:bg-gray-50">Logout</button>
 						<div className="h-8 w-8 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600" />
 					</div>
 				</header>
