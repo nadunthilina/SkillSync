@@ -26,13 +26,14 @@ export function AuthProvider({ children }) {
     setUser(data.user)
     return data.user
   }
-  const signup = async (name, email, password) => {
+  const signup = async (name, email, password, role) => {
     const payload = {
       name: (name || '').trim(),
       email: (email || '').trim().toLowerCase(),
       password,
+      ...(role ? { role } : {}),
     }
-    const { data } = await AuthAPI.register(payload)
+    const { data } = role ? await AuthAPI.registerWithRole(payload) : await AuthAPI.register(payload)
     setUser(data.user)
     return data.user
   }
