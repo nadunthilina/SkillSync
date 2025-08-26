@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Logo from './assets/SkillSync.png'
 import { Routes, Route, Link, NavLink, Outlet } from 'react-router-dom'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -10,10 +11,7 @@ import { Brain, LineChart, Users2, MessageSquareText, User, LogOut, Search, Menu
 import { useAuth } from './context/AuthContext.jsx'
 import { useNavigate } from 'react-router-dom'
 
-const brand = {
-  name: 'SkillSync',
-  gradient: 'bg-gradient-to-r from-sky-500 via-teal-500 to-blue-600',
-}
+// Branding image used in multiple spots; gradient block replaced with logo
 
 function HealthDot() {
   const [status, setStatus] = useState('loading') // loading | ok | fail
@@ -51,12 +49,18 @@ function LandingPage() {
   const [authLoading, setAuthLoading] = useState(false)
   const [error, setError] = useState('')
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
-  const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '', confirm: '', mentor: false })
   const [forgotForm, setForgotForm] = useState({ email: '' })
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
   const [cooldownUntil, setCooldownUntil] = useState(0)
   const [hp, setHp] = useState('')
+  const [mentorsPreview, setMentorsPreview] = useState([])
+  const [mentorsLoading, setMentorsLoading] = useState(true)
+
+  useEffect(()=>{ (async()=>{
+    try { const { data } = await axios.get('/api/mentors'); setMentorsPreview(data.mentors.slice(0,6)) } catch(e){ /* silent */ } finally { setMentorsLoading(false) }
+  })() }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -90,7 +94,7 @@ function LandingPage() {
       if (pw !== confirm) throw new Error('Passwords do not match')
       if (!validatePassword(pw)) throw new Error('Password must be at least 8 characters and include letters and numbers')
       const start = Date.now()
-      await signup(name, email, pw)
+  await signup(name, email, pw, signupForm.mentor ? 'mentor' : undefined)
       const elapsed = Date.now() - start
       if (elapsed < 400) await new Promise(r => setTimeout(r, 400 - elapsed))
       navigate('/dashboard')
@@ -128,7 +132,7 @@ function LandingPage() {
       <header className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 font-semibold">
-            <div className={`h-8 w-8 rounded-lg ${brand.gradient}`}></div>
+            <img src={Logo} alt="SkillSync" className="h-8 w-8 rounded-lg object-cover" />
             <span>SkillSync</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-gray-600">
@@ -160,7 +164,9 @@ function LandingPage() {
               <div className="absolute -inset-6 bg-gradient-to-tr from-teal-400/30 to-blue-500/30 blur-2xl rounded-3xl"></div>
               <div className="relative bg-white rounded-2xl shadow-xl p-6 border">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className={`h-10 w-10 rounded-xl ${brand.gradient}`}></div>
+                  <div className="h-10 w-10 rounded-xl overflow-hidden border bg-white">
+                    <img src={Logo} alt="SkillSync" className="h-full w-full object-cover" />
+                  </div>
                   <div>
                     <p className="font-semibold">AI + Career Growth</p>
                     <p className="text-xs text-gray-500">Smart insights from real job data</p>
@@ -182,6 +188,63 @@ function LandingPage() {
             <FeatureCard icon={<LineChart className="h-6 w-6 text-teal-600" />} title="Personalized Roadmap" desc="Get curated courses, projects, and a timeline that fits you." />
             <FeatureCard icon={<Users2 className="h-6 w-6 text-blue-600" />} title="Mentor Matching" desc="Connect with mentors who guide your journey in real time." />
           </div>
+        </section>
+
+        {/* How It Works */}
+        <section id="how" className="bg-white/60 border-y">
+          <div className="max-w-7xl mx-auto px-4 py-16">
+            <div className="max-w-2xl mb-10">
+              <h2 className="text-3xl font-bold tracking-tight mb-3">How it works</h2>
+              <p className="text-gray-600">A simple, guided loop that keeps you learning the right things at the right time.</p>
+            </div>
+            <ol className="grid md:grid-cols-5 gap-5 text-sm">
+              {[{
+                t:'Create account',d:'Set your role & goals.'},{t:'Analyze skills',d:'We detect strengths & gaps.'},{t:'Get roadmap',d:'Auto‑generated weekly plan.'},{t:'Connect mentor',d:'Book guidance & feedback.'},{t:'Track progress',d:'Visualize growth over time.'}].map((s,i)=>(
+                  <li key={s.t} className="relative group rounded-2xl border bg-white p-5 shadow-sm">
+                    <span className="absolute -top-3 -left-3 h-8 w-8 rounded-xl bg-sky-600 text-white grid place-items-center text-xs font-semibold shadow">{i+1}</span>
+                    <p className="font-medium mb-1">{s.t}</p>
+                    <p className="text-gray-600 text-xs leading-relaxed">{s.d}</p>
+                  </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* Mentors Preview */}
+        <section id="mentors" className="max-w-7xl mx-auto px-4 py-16">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8">
+            <div className="max-w-xl">
+              <h2 className="text-3xl font-bold tracking-tight mb-3">Featured mentors</h2>
+              <p className="text-gray-600 text-sm">Industry professionals ready to help you close your gaps faster.</p>
+            </div>
+            <div>
+              <Link to="/mentors" className="inline-flex items-center gap-1 text-sm text-sky-700 font-medium hover:underline">Browse all →</Link>
+            </div>
+          </div>
+          {mentorsLoading ? (
+            <div className="h-32 grid place-items-center text-gray-400 text-sm">Loading mentors…</div>
+          ) : mentorsPreview.length === 0 ? (
+            <p className="text-sm text-gray-500">No mentors yet. Check back soon.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {mentorsPreview.map(m => (
+                <div key={m.id} className="relative rounded-2xl border bg-white p-5 shadow-sm hover:shadow transition">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-semibold leading-tight">{m.name}</p>
+                      <p className="text-[11px] text-gray-500">{m.email}</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 text-white grid place-items-center text-xs font-medium">{(m.name||'?').slice(0,1)}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {(m.expertise||[]).slice(0,4).map(tag => <span key={tag} className="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border text-[11px]">{tag}</span>)}
+                    {(m.expertise||[]).length>4 && <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px]">+{(m.expertise||[]).length-4}</span>}
+                  </div>
+                  <button onClick={()=>navigate('/mentors')} className="mt-auto text-xs px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700">Connect</button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </main>
 
@@ -206,6 +269,7 @@ function LandingPage() {
           <input className="w-full border rounded-lg px-3 py-2" placeholder="Email" type="email" value={signupForm.email} onChange={(e)=>setSignupForm({...signupForm, email: e.target.value})} required />
           <input className="w-full border rounded-lg px-3 py-2" placeholder="Password (min 8 chars, letters & numbers)" type="password" value={signupForm.password} onChange={(e)=>setSignupForm({...signupForm, password: e.target.value})} required />
           <input className="w-full border rounded-lg px-3 py-2" placeholder="Confirm password" type="password" value={signupForm.confirm} onChange={(e)=>setSignupForm({...signupForm, confirm: e.target.value})} required />
+          <label className="flex items-center gap-2 text-xs text-gray-600 select-none"><input type="checkbox" checked={signupForm.mentor} onChange={e=>setSignupForm({...signupForm, mentor: e.target.checked})} /> Apply to become a mentor (requires admin approval)</label>
           <input className="hidden" tabIndex={-1} autoComplete="off" value={hp} onChange={(e)=>setHp(e.target.value)} aria-hidden="true" />
           <button type="submit" disabled={authLoading} className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60">{authLoading ? 'Creating…' : 'Sign up'}</button>
         </form>
@@ -266,7 +330,7 @@ function AuthPage({ mode }) {
       <div className="flex items-center justify-center p-6">
   <div className="w-full max-w-md bg-white border rounded-2xl p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <div className={`h-8 w-8 rounded-lg ${brand.gradient}`}></div>
+            <img src={Logo} alt="SkillSync" className="h-8 w-8 rounded-lg object-cover" />
             <p className="font-semibold">SkillSync</p>
           </div>
           <h1 className="text-2xl font-bold mb-6">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
@@ -294,10 +358,10 @@ function AuthPage({ mode }) {
 }
 
 function AppShell() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const navItems = [
+  const baseNav = [
     { to: '/dashboard', label: 'Dashboard', icon: <LineChart className="h-5 w-5" /> },
     { to: '/analyzer', label: 'Skill Analyzer', icon: <Brain className="h-5 w-5" /> },
     { to: '/roadmap', label: 'Roadmap', icon: <LineChart className="h-5 w-5" /> },
@@ -305,11 +369,17 @@ function AppShell() {
     { to: '/chat', label: 'Chat', icon: <MessageSquareText className="h-5 w-5" /> },
     { to: '/profile', label: 'Profile', icon: <User className="h-5 w-5" /> },
   ]
+  const mentorExtra = [
+    { to: '/mentor/overview', label: 'Mentor Home', icon: <Users2 className="h-5 w-5" /> },
+    { to: '/mentor/mentees', label: 'Mentees', icon: <Users2 className="h-5 w-5" /> },
+    { to: '/mentor/availability', label: 'Availability', icon: <LineChart className="h-5 w-5" /> },
+  ]
+  const navItems = user?.role === 'mentor' ? [...mentorExtra, ...baseNav] : baseNav
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-[260px_1fr]">
       <aside className={`border-r bg-white ${open ? 'block' : 'hidden'} md:block`}>
         <div className="h-14 border-b px-4 flex items-center gap-2">
-          <div className={`h-8 w-8 rounded-lg ${brand.gradient}`}></div>
+          <img src={Logo} alt="SkillSync" className="h-8 w-8 rounded-lg object-cover" />
           <span className="font-semibold">SkillSync</span>
         </div>
         <nav className="p-3 space-y-1">
@@ -345,10 +415,30 @@ function AppShell() {
 function DashboardPage() {
   const [progress, setProgress] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [mentorStatus, setMentorStatus] = useState(null)
   useEffect(()=>{ (async()=>{ try { const { data } = await axios.get('/api/user/progress', { withCredentials:true }); setProgress(data.progress) } catch(e){ console.error(e) } finally { setLoading(false) } })() }, [])
+  useEffect(()=>{ (async()=>{ try { const { data } = await axios.get('/api/user/mentor-application/status', { withCredentials:true }); setMentorStatus(data) } catch(e){ /*silent*/ } })() }, [])
   return (
     <div className="grid lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
+        {mentorStatus && mentorStatus.status==='pending' && (
+          <div className="rounded-2xl border bg-amber-50 p-4 text-sm flex items-start gap-3">
+            <div className="mt-0.5">⏳</div>
+            <div>
+              <p className="font-medium text-amber-800 mb-0.5">Mentor application under review</p>
+              <p className="text-amber-700 text-xs">You'll be notified once an admin approves it. You currently have standard user access.</p>
+            </div>
+          </div>
+        )}
+        {mentorStatus && mentorStatus.status==='rejected' && (
+          <div className="rounded-2xl border bg-rose-50 p-4 text-sm flex items-start gap-3">
+            <div className="mt-0.5">❌</div>
+            <div>
+              <p className="font-medium text-rose-800 mb-0.5">Mentor application rejected</p>
+              <p className="text-rose-700 text-xs">{mentorStatus.application?.notes || 'You can improve your profile and re-apply later.'}</p>
+            </div>
+          </div>
+        )}
         <div className="rounded-2xl border bg-white p-5">
           <h2 className="font-semibold mb-3">Progress Overview</h2>
           <ProgressCharts progress={progress} loading={loading} />
@@ -421,60 +511,153 @@ function ProgressCharts({ progress, loading }) {
 
 function AnalyzerPage() {
   const [role, setRole] = useState('Frontend Developer')
-  const [skills, setSkills] = useState('react, javascript, css')
+  const [input, setInput] = useState('react, javascript, css')
+  const [skills, setSkills] = useState(['react','javascript','css'])
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
-  const analyze = async () => {
-    setLoading(true)
-    try {
-      const { data } = await axios.post('/api/analyzer/analyze', { role, skillsText: skills }, { withCredentials: true })
-      setResult(data)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+  const [error, setError] = useState('')
+  const [showAllTarget, setShowAllTarget] = useState(false)
+  const [customRoleName, setCustomRoleName] = useState('')
+  const [customRoleSkills, setCustomRoleSkills] = useState('')
+
+  // Role -> canonical skills list mapping (sync with backend)
+  const roleTarget = {
+    'Frontend Developer': ['javascript','react','css','html','testing','typescript'],
+    'Backend Developer': ['node','express','mongodb','sql','api design','testing'],
+    'Data Scientist': ['python','statistics','pandas','numpy','ml','sql']
   }
+  const customTargets = customRoleSkills.split(/[,\n]/).map(s=>s.trim().toLowerCase()).filter(Boolean)
+  const targetList = role === '__custom__' ? customTargets : (roleTarget[role] || [])
+  const remainingSuggestions = targetList.filter(s=> !skills.includes(s))
+
+  const addSkill = (raw) => {
+    const s = raw.trim().toLowerCase()
+    if (!s) return
+    if (skills.includes(s)) return
+    setSkills(prev => [...prev, s])
+  }
+  const removeSkill = (s) => setSkills(list => list.filter(x=>x!==s))
+  const parseInput = () => {
+    input.split(/[\n,]/).map(s=>s.trim()).filter(Boolean).forEach(addSkill)
+    setInput('')
+  }
+  const analyze = async () => {
+    setLoading(true); setError(''); setResult(null)
+    try {
+      const skillsText = skills.join(', ')
+      const { data } = await axios.post('/api/analyzer/analyze', { role, skillsText }, { withCredentials: true })
+      setResult(data)
+    } catch(e){ setError(e.response?.data?.message || 'Analyze failed') } finally { setLoading(false) }
+  }
+  const copyMissing = () => { if (result) navigator.clipboard.writeText(result.missingSkills.join(', ')) }
+  const exportJSON = () => { if (!result) return; const blob = new Blob([JSON.stringify(result,null,2)], { type:'application/json' }); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='skill-analysis.json'; a.click(); }
   return (
-    <div className="grid lg:grid-cols-3 gap-4">
-      <div className="lg:col-span-1 rounded-2xl border bg-white p-5">
-        <h2 className="font-semibold mb-3">Skill Analyzer</h2>
-        <div className="space-y-3">
-          <select className="w-full border rounded-lg px-3 py-2" value={role} onChange={e=>setRole(e.target.value)}>
-            <option>Frontend Developer</option>
-            <option>Backend Developer</option>
-            <option>Data Scientist</option>
-          </select>
-          <textarea className="w-full border rounded-lg px-3 py-2 h-28" placeholder="Your current skills (comma separated)" value={skills} onChange={e=>setSkills(e.target.value)}></textarea>
-          <button type="button" disabled={loading} onClick={analyze} className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60">{loading? 'Analyzing…':'Analyze'}</button>
-        </div>
-      </div>
-      <div className="lg:col-span-2 space-y-4">
-        {result && (
-          <>
-            <div className="rounded-2xl border bg-white p-5">
-              <h3 className="font-semibold mb-2">Missing Skills</h3>
-              {result.missingSkills.length === 0 ? <p className="text-sm text-gray-500">No gaps detected 🎉</p> : (
-                <div className="flex flex-wrap gap-2">
-                  {result.missingSkills.map(s => <span key={s} className="px-3 py-1.5 text-sm rounded-full bg-emerald-50 text-emerald-700 border">{s}</span>)}
+    <div className="space-y-6">
+      <div className="rounded-2xl border bg-white p-5">
+        <div className="flex flex-col md:flex-row md:items-start gap-6">
+          <div className="md:w-72 space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-500">Target Role</label>
+              <select className="w-full border rounded-lg px-3 py-2 text-sm" value={role} onChange={e=>{ setRole(e.target.value); setResult(null) }}>
+                {Object.keys(roleTarget).map(r=> <option key={r} value={r}>{r}</option>)}
+                <option value="__custom__">Other / Custom…</option>
+              </select>
+              {role==='__custom__' && (
+                <div className="mt-3 space-y-3 rounded-lg border p-3 bg-white/50">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-gray-500">Custom Role Name</label>
+                    <input value={customRoleName} onChange={e=>{ setCustomRoleName(e.target.value); setResult(null) }} placeholder="e.g. DevOps Engineer" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-gray-500">Target Skills (comma or newline separated)</label>
+                    <textarea value={customRoleSkills} onChange={e=>{ setCustomRoleSkills(e.target.value); setResult(null) }} placeholder="docker, kubernetes, ci/cd, aws" className="w-full border rounded-lg px-3 py-2 text-xs h-20"></textarea>
+                  </div>
+                  {customTargets.length>0 && <p className="text-[10px] text-gray-500">{customTargets.length} target skills defined.</p>}
                 </div>
               )}
             </div>
-            <div className="rounded-2xl border bg-white p-5">
-              <h3 className="font-semibold mb-3">Recommended Resources</h3>
-              <div className="space-y-3">
-                {result.recommendedResources.map(r => (
-                  <div key={r.skill} className="rounded-xl border p-3">
-                    <p className="font-medium mb-1">{r.skill}</p>
-                    <ul className="text-xs text-gray-600 list-disc pl-4 space-y-0.5">
-                      {r.resources.map(res => <li key={res}>{res}</li>)}
-                    </ul>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Add Skills</label>
+              <div className="flex gap-2">
+                <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); parseInput() } }} placeholder="e.g. react, css" className="flex-1 border rounded-lg px-3 py-2 text-sm" />
+                <button onClick={parseInput} className="px-3 py-2 rounded-lg bg-sky-600 text-white text-xs">Add</button>
+              </div>
+              <p className="text-[10px] text-gray-500">Press Enter or Add. Comma or newline separated.</p>
+            </div>
+            {remainingSuggestions.length>0 && (
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium text-gray-500">Suggestions</p>
+                <div className="flex flex-wrap gap-1">
+                  {remainingSuggestions.slice(0,6).map(s=> <button key={s} onClick={()=>addSkill(s)} className="px-2 py-1 rounded-md bg-sky-50 border text-[11px] text-sky-700 hover:bg-sky-100">{s}</button>)}
+                  {remainingSuggestions.length>6 && <button onClick={()=>setShowAllTarget(v=>!v)} className="px-2 py-1 rounded-md border text-[11px] bg-white">{showAllTarget?'Hide':'More'}</button>}
+                </div>
+                {showAllTarget && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {remainingSuggestions.slice(6).map(s=> <button key={s} onClick={()=>addSkill(s)} className="px-2 py-1 rounded-md bg-sky-50 border text-[11px] text-sky-700 hover:bg-sky-100">{s}</button>)}
                   </div>
+                )}
+              </div>
+            )}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Your Skills ({skills.length})</label>
+              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto rounded-lg border p-2 bg-gray-50">
+                {skills.map(s => (
+                  <span key={s} className="group inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border text-[11px]">
+                    {s}
+                    <button onClick={()=>removeSkill(s)} className="opacity-50 group-hover:opacity-100 text-gray-500 hover:text-rose-600">×</button>
+                  </span>
                 ))}
+                {!skills.length && <span className="text-[11px] text-gray-400">No skills yet</span>}
               </div>
             </div>
-          </>
-        )}
+            <button onClick={analyze} disabled={loading} className="w-full px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium disabled:opacity-60">{loading?'Analyzing…':'Run Analysis'}</button>
+            {error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1 rounded">{error}</div>}
+          </div>
+          <div className="flex-1 space-y-5">
+            {!result && !loading && <div className="h-40 grid place-items-center text-gray-400 text-sm">Run the analysis to see gaps</div>}
+            {loading && <div className="h-40 grid place-items-center text-gray-400 text-sm animate-pulse">Processing…</div>}
+            {result && (
+              <div className="space-y-5">
+                <div className="rounded-xl border bg-white/50 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-sm">Missing Skills ({result.missingSkills.length})</h3>
+                    <div className="flex gap-2">
+                      <button onClick={copyMissing} className="text-[11px] px-2 py-1 rounded-md border bg-white hover:bg-sky-50">Copy</button>
+                      <button onClick={exportJSON} className="text-[11px] px-2 py-1 rounded-md border bg-white hover:bg-sky-50">Export JSON</button>
+                    </div>
+                  </div>
+                  {result.missingSkills.length === 0 ? <p className="text-xs text-gray-500">No gaps detected 🎉</p> : (
+                    <div className="flex flex-wrap gap-2">
+                      {result.missingSkills.map(s => <span key={s} className="px-2 py-1 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px]">{s}</span>)}
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-xl border bg-white/50 p-4">
+                  <h3 className="font-semibold text-sm mb-3">Recommended Resources</h3>
+                  {result.recommendedResources.length === 0 ? <p className="text-xs text-gray-500">None needed</p> : (
+                    <div className="space-y-3">
+                      {result.recommendedResources.map(r => (
+                        <div key={r.skill} className="rounded-lg border p-3 bg-white">
+                          <p className="font-medium text-sm mb-1">{r.skill}</p>
+                          <ul className="text-[11px] text-gray-600 list-disc pl-4 space-y-0.5">
+                            {r.resources.map(res => <li key={res}>{res}</li>)}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-xl border bg-white/50 p-4">
+                  <h3 className="font-semibold text-sm mb-2">Coverage</h3>
+                  <p className="text-xs text-gray-500 mb-2">You have {skills.length} / {targetList.length} target skills ({Math.round(skills.filter(s=>targetList.includes(s)).length/targetList.length*100)||0}%).</p>
+                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-sky-600" style={{ width: `${Math.round(skills.filter(s=>targetList.includes(s)).length/targetList.length*100)||0}%` }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -483,13 +666,16 @@ function AnalyzerPage() {
 function RoadmapPage() {
   const [missing, setMissing] = useState('react testing typescript')
   const [role, setRole] = useState('Frontend Developer')
+  const [useCustomRole, setUseCustomRole] = useState(false)
+  const [customRole, setCustomRole] = useState('')
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(false)
   const generate = async () => {
     setLoading(true)
     try {
       const missingSkills = missing.split(/[,\s]/).map(s=>s.trim().toLowerCase()).filter(Boolean)
-      const { data } = await axios.post('/api/roadmap/generate', { role, missingSkills }, { withCredentials: true })
+      const roleName = useCustomRole ? (customRole.trim() || 'Custom Role') : role
+      const { data } = await axios.post('/api/roadmap/generate', { role: roleName, missingSkills }, { withCredentials: true })
       setTasks(data.tasks)
     } catch (e) { console.error(e) } finally { setLoading(false) }
   }
@@ -498,14 +684,25 @@ function RoadmapPage() {
       <div className="rounded-2xl border bg-white p-5">
         <h2 className="font-semibold mb-3">Generate Roadmap</h2>
         <div className="grid sm:grid-cols-3 gap-3">
-          <select className="border rounded-lg px-3 py-2" value={role} onChange={e=>setRole(e.target.value)}>
-            <option>Frontend Developer</option>
-            <option>Backend Developer</option>
-            <option>Data Scientist</option>
-          </select>
-          <input className="border rounded-lg px-3 py-2 sm:col-span-2" value={missing} onChange={e=>setMissing(e.target.value)} placeholder="Missing skills" />
-          <button onClick={generate} disabled={loading} className="px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60 sm:col-span-3">{loading? 'Generating…':'Generate'}</button>
+          {!useCustomRole ? (
+            <div className="flex flex-col gap-2">
+              <select className="border rounded-lg px-3 py-2" value={role} onChange={e=>{ setRole(e.target.value); setTasks([]) }}>
+                <option>Frontend Developer</option>
+                <option>Backend Developer</option>
+                <option>Data Scientist</option>
+              </select>
+              <button type="button" onClick={()=>{ setUseCustomRole(true); setTasks([]) }} className="text-[11px] text-sky-600 underline w-fit">Use custom role</button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <input className="border rounded-lg px-3 py-2" value={customRole} onChange={e=>{ setCustomRole(e.target.value); setTasks([]) }} placeholder="Enter any role (e.g., Mobile Engineer, DevOps)" />
+              <button type="button" onClick={()=>{ setUseCustomRole(false); setCustomRole('') }} className="text-[11px] text-sky-600 underline w-fit">Back to presets</button>
+            </div>
+          )}
+          <input className="border rounded-lg px-3 py-2 sm:col-span-2" value={missing} onChange={e=>setMissing(e.target.value)} placeholder="Missing skills (comma or space separated)" />
+          <button onClick={generate} disabled={loading || (useCustomRole && !customRole.trim())} className="px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60 sm:col-span-3">{loading? 'Generating…':'Generate'}</button>
         </div>
+        <p className="mt-2 text-[11px] text-gray-500">You can switch to a custom role to generate a roadmap for any career path.</p>
       </div>
       <div className="rounded-2xl border bg-white p-5">
         <h2 className="font-semibold mb-3">Roadmap Tasks</h2>
@@ -529,15 +726,16 @@ function RoadmapPage() {
 }
 
 function ChatPage() {
-  const [mentors, setMentors] = useState([])
+  const { user } = useAuth()
+  const [peers, setPeers] = useState([])
   const [active, setActive] = useState(null)
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
-  const loadMentors = async () => {
-    try { const { data } = await axios.get('/api/chat/conversations', { withCredentials: true }); setMentors(data.mentors) } catch(e){ console.error(e) }
+  const loadPeers = async () => {
+    try { const { data } = await axios.get('/api/chat/conversations', { withCredentials: true }); setPeers(data.mentors) } catch(e){ console.error(e) }
   }
-  const loadMessages = async (mentorId) => {
-    try { const { data } = await axios.get(`/api/chat/messages/${mentorId}`, { withCredentials: true }); setMessages(data.messages); setActive(mentorId) } catch(e){ console.error(e) }
+  const loadMessages = async (otherId) => {
+    try { const { data } = await axios.get(`/api/chat/messages/${otherId}`, { withCredentials: true }); setMessages(data.messages); setActive(otherId) } catch(e){ console.error(e) }
   }
   const send = async () => {
     if (!active || !text.trim()) return
@@ -545,20 +743,22 @@ function ChatPage() {
     setText('')
     try { const { data } = await axios.post(`/api/chat/messages/${active}`, { text: t }, { withCredentials: true }); setMessages(m => [...m, ...data.messages]) } catch(e){ console.error(e) }
   }
-  useEffect(()=>{ loadMentors() }, [])
+  useEffect(()=>{ loadPeers() }, [])
+  const emptyLabel = user?.role==='mentor' ? 'No users yet.' : 'No mentors yet.'
+  const header = active ? 'Conversation' : (user?.role==='mentor' ? 'Select a user' : 'Select a mentor')
   return (
     <div className="grid lg:grid-cols-[260px_1fr] gap-4">
       <div className="rounded-2xl border bg-white p-3 space-y-2">
-        {mentors.map(m => (
-          <button key={m._id} onClick={()=>loadMessages(m._id)} className={`block w-full text-left p-3 rounded-lg border ${active===m._id?'bg-sky-50 border-sky-300':'hover:bg-gray-50'}`}>{m.name || 'Mentor'}</button>
+        {peers.map(p => (
+          <button key={p._id} onClick={()=>loadMessages(p._id)} className={`block w-full text-left p-3 rounded-lg border ${active===p._id?'bg-sky-50 border-sky-300':'hover:bg-gray-50'}`}>{p.name || (user?.role==='mentor'?'User':'Mentor')}</button>
         ))}
-        {mentors.length===0 && <p className="text-xs text-gray-500">No mentors yet.</p>}
+        {peers.length===0 && <p className="text-xs text-gray-500">{emptyLabel}</p>}
       </div>
       <div className="rounded-2xl border bg-white flex flex-col">
-        <div className="border-b p-3 font-medium">{active? 'Conversation':'Select a mentor'}</div>
+        <div className="border-b p-3 font-medium">{header}</div>
         <div className="flex-1 p-4 space-y-3 overflow-y-auto">
           {messages.map(m => (
-            <div key={m._id} className={`max-w-sm rounded-2xl px-3 py-2 ${m.sender==='user'?'bg-sky-600 text-white ml-auto':'bg-gray-100'}`}>{m.text}</div>
+            <div key={m._id} className={`max-w-sm rounded-2xl px-3 py-2 ${m.sender===(user?.role==='mentor'?'mentor':'user')?'bg-sky-600 text-white ml-auto':'bg-gray-100'}`}>{m.text}</div>
           ))}
         </div>
         {active && (
@@ -576,6 +776,8 @@ function MentorsPage() {
   const [mentors, setMentors] = useState([])
   const [loading, setLoading] = useState(true)
   const [choosing, setChoosing] = useState('')
+  const [chosen, setChosen] = useState(null)
+  useEffect(()=>{ (async()=>{ try { const { data } = await axios.get('/api/user/profile', { withCredentials:true }); setChosen(data.user?.chosenMentor?._id || data.user?.chosenMentor?.id ) } catch(e){} })() }, [])
   const choose = async (id) => {
     setChoosing(id)
     try { await axios.post('/api/user/choose-mentor', { mentorId: id }, { withCredentials: true }); alert('Mentor selected'); } catch(e){ alert(e.response?.data?.message||'Failed') } finally { setChoosing('') }
@@ -587,11 +789,17 @@ function MentorsPage() {
       {loading ? <p className="text-sm text-gray-500">Loading…</p> : mentors.length===0 ? <p className="text-sm text-gray-500">No mentors yet.</p> : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {mentors.map(m => (
-            <div key={m.id} className="rounded-xl border p-4 bg-white space-y-1">
-              <p className="font-medium">{m.name}</p>
+            <div key={m.id} className={`rounded-xl border p-4 bg-white space-y-1 relative ${chosen===m.id?'ring-2 ring-sky-500':''}`}>
+              <p className="font-medium flex items-center gap-2">{m.name} {chosen===m.id && <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 text-[10px] border">Selected</span>}</p>
               <p className="text-xs text-gray-500">{m.email}</p>
               <p className="text-xs text-gray-500">{m.phone || 'No phone'}</p>
-              <button disabled={choosing===m.id} onClick={()=>choose(m.id)} className="mt-2 text-xs px-3 py-1 rounded bg-sky-600 text-white disabled:opacity-50">{choosing===m.id?'Choosing…':'Choose Mentor'}</button>
+              {chosen===m.id ? (
+                <div className="mt-2 flex gap-2">
+                  <button onClick={()=>{ window.location.href='/chat' }} className="text-xs px-3 py-1 rounded bg-sky-600 text-white">Open Chat</button>
+                </div>
+              ) : (
+                <button disabled={choosing===m.id} onClick={()=>choose(m.id)} className="mt-2 text-xs px-3 py-1 rounded bg-sky-600 text-white disabled:opacity-50">{choosing===m.id?'Choosing…':'Choose Mentor'}</button>
+              )}
             </div>
           ))}
         </div>
@@ -655,8 +863,99 @@ export default function App() {
   <Route path="/mentors" element={<MentorsPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/mentor/overview" element={<MentorHomePage />} />
+        <Route path="/mentor/mentees" element={<MentorMenteesPage />} />
+        <Route path="/mentor/availability" element={<MentorAvailabilityPage />} />
         </Route>
       </Route>
     </Routes>
   )
+}
+
+// Mentor-specific simple pages
+function MentorGuard({ children }) {
+  const { user } = useAuth()
+  if (!user || user.role !== 'mentor') return <div className="text-sm text-gray-500">Not authorized (mentor only).</div>
+  return children
+}
+
+function MentorHomePage() {
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(()=>{ (async()=>{ try { const { data } = await axios.get('/api/chat/conversations', { withCredentials:true }); setStats({ mentees: data.mentors?.length||0 }) } catch{} finally { setLoading(false) } })() }, [])
+  return <MentorGuard>
+    <div className="space-y-6">
+      <div className="rounded-2xl border bg-white p-5">
+        <h2 className="font-semibold mb-2">Mentor Overview</h2>
+        {loading? <p className="text-sm text-gray-500">Loading…</p> : (
+          <div className="grid sm:grid-cols-3 gap-4 text-sm">
+            <div className="rounded-xl border p-4 bg-sky-50">
+              <p className="text-xs text-gray-500 mb-1">Active Mentees</p>
+              <p className="text-2xl font-semibold text-sky-700">{stats.mentees}</p>
+            </div>
+            <div className="rounded-xl border p-4 bg-teal-50">
+              <p className="text-xs text-gray-500 mb-1">Upcoming Sessions</p>
+              <p className="text-2xl font-semibold text-teal-700">0</p>
+            </div>
+            <div className="rounded-xl border p-4 bg-indigo-50">
+              <p className="text-xs text-gray-500 mb-1">Unread Messages</p>
+              <p className="text-2xl font-semibold text-indigo-700">0</p>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="rounded-2xl border bg-white p-5">
+        <h3 className="font-semibold mb-2 text-sm">Quick Actions</h3>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <button className="px-3 py-2 rounded-lg border bg-white hover:bg-sky-50">Set Availability</button>
+          <button className="px-3 py-2 rounded-lg border bg-white hover:bg-sky-50">Create Session Slot</button>
+          <button className="px-3 py-2 rounded-lg border bg-white hover:bg-sky-50">Message Mentees</button>
+        </div>
+      </div>
+    </div>
+  </MentorGuard>
+}
+
+function MentorMenteesPage() {
+  const [mentees, setMentees] = useState([])
+  const [loading, setLoading] = useState(true)
+  useEffect(()=>{ (async()=>{ try { const { data } = await axios.get('/api/mentors', { withCredentials:true }); /* placeholder: would hit a mentor-specific mentees endpoint */ setMentees([]) } catch{} finally { setLoading(false) } })() }, [])
+  return <MentorGuard>
+    <div className="rounded-2xl border bg-white p-5">
+      <h2 className="font-semibold mb-3">Your Mentees</h2>
+      {loading? <p className="text-sm text-gray-500">Loading…</p> : mentees.length===0 ? <p className="text-sm text-gray-500">No mentees yet.</p> : (
+        <div className="space-y-3">
+          {mentees.map(m => <div key={m.id} className="rounded-lg border p-3 flex items-center justify-between"><div><p className="font-medium text-sm">{m.name}</p><p className="text-xs text-gray-500">{m.email}</p></div><button className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs">Message</button></div>)}
+        </div>
+      )}
+    </div>
+  </MentorGuard>
+}
+
+function MentorAvailabilityPage() {
+  const [slots, setSlots] = useState([])
+  const [day, setDay] = useState('Mon')
+  const [from, setFrom] = useState('09:00')
+  const [to, setTo] = useState('10:00')
+  const addSlot = () => { if(!day||!from||!to) return; setSlots(s=>[...s,{ id:Date.now(), day, from, to }]) }
+  return <MentorGuard>
+    <div className="space-y-6">
+      <div className="rounded-2xl border bg-white p-5">
+        <h2 className="font-semibold mb-3">Availability</h2>
+        <div className="flex flex-wrap gap-2 items-end text-sm">
+          <select value={day} onChange={e=>setDay(e.target.value)} className="border rounded-lg px-3 py-2">
+            {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=> <option key={d}>{d}</option>)}
+          </select>
+          <input type="time" value={from} onChange={e=>setFrom(e.target.value)} className="border rounded-lg px-3 py-2" />
+          <input type="time" value={to} onChange={e=>setTo(e.target.value)} className="border rounded-lg px-3 py-2" />
+          <button onClick={addSlot} className="px-4 py-2 rounded-lg bg-sky-600 text-white">Add Slot</button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {slots.map(s => <div key={s.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs"><span>{s.day} {s.from}-{s.to}</span><button onClick={()=>setSlots(x=>x.filter(y=>y.id!==s.id))} className="text-rose-600 hover:underline">Remove</button></div>)}
+          {!slots.length && <p className="text-xs text-gray-500">No slots yet.</p>}
+        </div>
+        <p className="mt-4 text-[11px] text-gray-500">(Persisting availability to backend not yet implemented.)</p>
+      </div>
+    </div>
+  </MentorGuard>
 }
