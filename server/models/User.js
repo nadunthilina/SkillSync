@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
   avatarUrl: { type: String },
   resetToken: { type: String },
   resetTokenExpiresAt: { type: Date },
+  chosenMentor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true })
 
 module.exports = mongoose.model('User', userSchema)
