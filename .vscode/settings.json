@@ -15,5 +15,11 @@
   },
   "files.watcherExclude": {
     "**/client/dist/**": true
-  }
+  },
+  // Python environment & analysis for ML scripts
+  "python.defaultInterpreterPath": ".venv/Scripts/python.exe",
+  "python.analysis.extraPaths": [
+    "ml"
+  ],
+  "python.analysis.typeCheckingMode": "basic"
 }
