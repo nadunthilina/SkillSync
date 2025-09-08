@@ -6,7 +6,9 @@ const MentorApplication = require('../models/MentorApplication')
 const router = express.Router()
 
 router.get('/profile', auth(true), async (req, res) => {
-  const user = await User.findById(req.user.id).select('name email role skills goal avatarUrl createdAt updatedAt')
+  const user = await User.findById(req.user.id)
+    .select('name email role skills goal avatarUrl createdAt updatedAt chosenMentor')
+    .populate('chosenMentor', 'name email role')
   res.json({ user })
 })
 
@@ -28,6 +30,14 @@ router.post('/choose-mentor', auth(true), async (req, res) => {
   const mentor = await User.findById(mentorId)
   if (!mentor || mentor.role !== 'mentor') return res.status(400).json({ message: 'Invalid mentor' })
   await User.findByIdAndUpdate(req.user.id, { chosenMentor: mentorId })
+  // Create a starter chat message if none exists yet to surface conversation
+  try {
+    const ChatMessage = require('../models/ChatMessage')
+    const existing = await ChatMessage.findOne({ userId: req.user.id, mentorId })
+    if (!existing) {
+      await ChatMessage.create({ userId: req.user.id, mentorId, sender: 'mentor', text: 'Hi! I\'m your mentor now. Feel free to send your first question.' })
+    }
+  } catch (e) { /* silent */ }
   res.json({ ok: true })
 })
 
