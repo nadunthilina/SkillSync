@@ -4,8 +4,12 @@ Run after training:
 Or load from hub:
   python ml/inference_example.py --model your-username/skill-ner-skillsync
 """
-import argparse
-from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
+import argparse, sys
+try:
+  from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline  # type: ignore
+except Exception as e:  # pragma: no cover
+  print("\n[ERROR] Missing dependency 'transformers'.\nActivate your venv then install requirements:\n  . .venv/Scripts/Activate.ps1\n  pip install -r ml/requirements.txt\n", file=sys.stderr)
+  raise SystemExit(1)
 
 def parse_args():
     p = argparse.ArgumentParser()
