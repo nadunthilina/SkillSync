@@ -1,0 +1,8 @@
+transformers>=4.41.0
+datasets>=2.19.0
+evaluate>=0.4.2
+seqeval>=1.2.2
+accelerate>=0.30.0
+huggingface_hub>=0.23.0
+# For CPU-only install; comment and install a CUDA wheel if you have GPU
+torch>=2.1.0
