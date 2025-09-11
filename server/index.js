@@ -13,6 +13,7 @@ const userRoutes = require('./routes/user');
 const chatRoutes = require('./routes/chat');
 const auth = require('./middleware/auth');
 const { verifyAdmin } = require('./middleware/auth');
+const { ensureAdminSeed } = require('./utils/seed');
 
 dotenv.config();
 
@@ -21,7 +22,8 @@ const app = express();
 // Config
 const PORT = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+// Support multiple comma-separated origins; default include client + admin dev ports
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174';
 
 // Middleware
 // CORS: allow configured origins; in dev, allow any localhost port for convenience
@@ -72,9 +74,10 @@ async function start() {
     if (!MONGO_URI) {
       console.warn('MONGO_URI is not set. Skipping DB connection for now.');
     } else {
-      await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
-      console.log('MongoDB connected');
-      connected = true;
+  await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+  console.log('MongoDB connected');
+  connected = true;
+  await ensureAdminSeed();
     }
   } catch (err) {
     console.warn('MongoDB connection failed:', err?.message || err);
