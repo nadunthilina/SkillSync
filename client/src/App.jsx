@@ -50,7 +50,7 @@ function LandingPage() {
   const [error, setError] = useState('')
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '', confirm: '', mentor: false })
-  const [forgotForm, setForgotForm] = useState({ email: '' })
+  const [forgotForm, setForgotForm] = useState({ email: '', password: '', confirm: '' })
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
   const [cooldownUntil, setCooldownUntil] = useState(0)
@@ -107,6 +107,7 @@ function LandingPage() {
   }
 
   const handleForgot = async (e) => {
+    // Direct reset in this modal (no email link)
     e.preventDefault()
     setError('')
     setForgotLoading(true)
@@ -114,14 +115,24 @@ function LandingPage() {
       if (hp) throw new Error('Bot detected')
       const now = Date.now()
       if (now < cooldownUntil) throw new Error('Please wait a moment before trying again')
-      const email = forgotForm.email.trim().toLowerCase()
+      const email = (forgotForm.email || '').trim().toLowerCase()
+      const pw = forgotForm.password || ''
+      const confirm = forgotForm.confirm || ''
+
+      if (!email || !pw || !confirm) throw new Error('All fields are required')
+      if (pw !== confirm) throw new Error('Passwords do not match')
+      if (!validatePassword(pw)) throw new Error('Password must be at least 8 characters and include letters and numbers')
+
       const { AuthAPI } = await import('./lib/api')
-      await AuthAPI.forgotPassword(email)
-      setForgotSent(true)
+      await AuthAPI.directResetPassword(email, pw)
+
+      // Success → return user to login
+      setShowForgot(false)
+      setShowLogin(true)
+      alert('Password updated. Please log in with your new password.')
     } catch (err) {
-      // For security, show generic success; optionally show server message during dev
-      setForgotSent(true)
       setCooldownUntil(Date.now() + 3000)
+      setError(err?.response?.data?.message || err?.message || 'Failed to reset password')
     } finally {
       setForgotLoading(false)
     }
@@ -277,18 +288,36 @@ function LandingPage() {
       </Modal>
 
       <Modal open={showForgot} onClose={()=>setShowForgot(false)} title="Reset your password">
-        {forgotSent ? (
-          <div className="space-y-3 text-sm">
-            <p>We’ve sent a password reset link to your email if an account exists.</p>
-            <button className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700" onClick={()=>{ setShowForgot(false); setShowLogin(true) }}>Back to login</button>
-          </div>
-        ) : (
-          <form className="space-y-3" onSubmit={handleForgot}>
-            <input className="w-full border rounded-lg px-3 py-2" placeholder="Your email" type="email" value={forgotForm.email} onChange={(e)=>setForgotForm({ email: e.target.value })} required />
-            <input className="hidden" tabIndex={-1} autoComplete="off" value={hp} onChange={(e)=>setHp(e.target.value)} aria-hidden="true" />
-            <button type="submit" disabled={forgotLoading || Date.now() < cooldownUntil} className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60">{forgotLoading ? 'Sending…' : (Date.now() < cooldownUntil ? 'Please wait…' : 'Send reset link')}</button>
-          </form>
-        )}
+        {error && <div className="mb-2 text-sm text-rose-600">{error}</div>}
+        <form className="space-y-3" onSubmit={handleForgot}>
+          <input
+            className="w-full border rounded-lg px-3 py-2"
+            placeholder="Email"
+            type="email"
+            value={forgotForm.email}
+            onChange={(e)=>setForgotForm({ ...forgotForm, email: e.target.value })}
+            required
+          />
+          <input
+            className="w-full border rounded-lg px-3 py-2"
+            placeholder="New password (min 8 chars, letters & numbers)"
+            type="password"
+            value={forgotForm.password}
+            onChange={(e)=>setForgotForm({ ...forgotForm, password: e.target.value })}
+            required
+          />
+          <input
+            className="w-full border rounded-lg px-3 py-2"
+            placeholder="Confirm new password"
+            type="password"
+            value={forgotForm.confirm}
+            onChange={(e)=>setForgotForm({ ...forgotForm, confirm: e.target.value })}
+            required
+          />
+          {/* Honeypot */}
+          <input className="hidden" tabIndex={-1} autoComplete="off" value={hp} onChange={(e)=>setHp(e.target.value)} aria-hidden="true" />
+          <button type="submit" disabled={forgotLoading || Date.now() < cooldownUntil} className="w-full px-4 py-2 rounded-lg text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60">{forgotLoading ? 'Resetting…' : (Date.now() < cooldownUntil ? 'Please wait…' : 'Reset Password')}</button>
+        </form>
       </Modal>
     </div>
   )
